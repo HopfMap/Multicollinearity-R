@@ -1,4 +1,9 @@
 # Toy model with collinearity
+#
+# With this code we want to test the claim
+# that SVM is extremely robust aginst the problem of multicollinearity
+# as stated for example at pag.190 of "Machine Learning with R Cookbook" (Di Yu-Wei, Chiu):
+# "It also does not suffer from local optima and multicollinearity"
 
 library(MASS)
 library(caret)
@@ -8,11 +13,11 @@ library(ggplot2)
 
 # Generation of the dataset X
 
-n_trial <- 5000
+n_trial <- 10000
 x1 <- mvrnorm(n = n_trial, mu = 0, Sigma = 1.5)
 x2 <- mvrnorm(n = n_trial, mu = -1, Sigma = 2.)
 x3 <- mvrnorm(n = n_trial, mu = 5, Sigma = 1.8)
-alpha <- runif(n = n_trial, min = -2.5, max = 2.5)
+alpha <- runif(n = n_trial, min = -0.01, max = 0.01)
 #alpha <- 1
 x4 <- alpha + x3 # almost linear relation
 
@@ -44,7 +49,7 @@ X$target <- as.factor(unlist(target))
 # Build some model
 
 set.seed(1984)
-perc_train_set <- 0.8
+perc_train_set <- 0.7
 train_row_idx <- createDataPartition(X$target,
                                      p=perc_train_set,
                                      list = FALSE)
@@ -54,26 +59,27 @@ test_set <- X[-train_row_idx,]
 
 # SVM Kernel
 svm_ker <- "vanilladot"
+#svm_ker <- "rbfdot"
 
 # with correlated variable
 svm_model <- ksvm(target ~ x1+x2+x3+x4,
                   data = train_set,
                   kernel = svm_ker,
-                  C = 1.0
+                  C = 5
                   )
 
 # without the correlated variable
 svm_model_wox4 <- ksvm(target ~ x1+x2+x3,
                        data = train_set,
                        kernel = svm_ker,
-                       C = 1.0
+                       C = 5
 )
 
 test_results <- predict(svm_model, test_set, type = "decision")
 test_perf <- ROCR::prediction(predictions = test_results,
                              labels = test_set$target)
 test_ROC <- performance(test_perf, measure = "tpr", x.measure = "fpr")
-
+test_AUC <- performance(test_perf, measure = "auc")@y.values[[1]]
 test_ROC_df <- data.frame(unlist(test_ROC@x.values),
                           unlist(test_ROC@y.values))
 
@@ -83,7 +89,7 @@ test_results_wox4 <- predict(svm_model_wox4, test_set, type = "decision")
 test_perf_wox4 <- ROCR::prediction(predictions = test_results_wox4,
                               labels = test_set$target)
 test_ROC_wox4 <- performance(test_perf_wox4, measure = "tpr", x.measure = "fpr")
-
+test_AUC_wox4 <- performance(test_perf_wox4, measure = "auc")@y.values[[1]]
 test_ROC_df_wox4 <- data.frame(unlist(test_ROC_wox4@x.values),
                                unlist(test_ROC_wox4@y.values))
 
@@ -100,6 +106,10 @@ ggplot() +
   geom_line(data=xyline, aes(x=xline, y=yline), color='black',linetype = "dashed") +
   xlab("False positive rate") + ylab("True positive rate") +
   ggtitle("ROC")
+
+# AUC
+print(paste("AUC (svm w x4) -->",format(test_AUC*100,digits = 4),"%"))
+print(paste("AUC (svm wo x4) -->",format(test_AUC_wox4*100,digits = 4),"%"))
 
 # Correlations
 cor(X[,c(1,2,3,4)])
