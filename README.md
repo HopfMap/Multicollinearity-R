@@ -5,5 +5,5 @@ as stated for example at pag.190 of "Machine Learning with R Cookbook" (Di Yu-We
 "It also does not suffer from local optima and multicollinearity"\n
 
 Comparison performed with two model:\n
-1) SVM
-2) Logistic 
+1- SVM
+2- Logistic 
